@@ -9,15 +9,17 @@ import itertools
 import threading
 from datetime import datetime, tzinfo, timedelta
 import time
+import logging
+
+from .lib.view_utils import extract_selector, selector_in_region, all_selectors_in_region
+
+logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
 
 platform = sublime.platform()
 ST3 = int(sublime.version()) >= 3000
 
-if ST3:
-    from .APlainTasksCommon import PlainTasksBase, PlainTasksFold, get_all_projects_and_separators
-else:
-    from APlainTasksCommon import PlainTasksBase, PlainTasksFold, get_all_projects_and_separators
-    sublime_plugin.ViewEventListener = object
+from .lib.PlainTasksCommon import PlainTasksBase, PlainTasksFold, get_all_projects_and_separators
+
 
 # io is not operable in ST2 on Linux, but in all other cases io is better
 # https://github.com/SublimeTextIssues/Core/issues/254
@@ -72,6 +74,29 @@ def check_parentheses(date_format, regex_group, is_date=False):
             parentheses = regex_group
     return parentheses
 
+def add_tag(view, edit, region, tag, attribute = None):
+    if attribute is None:
+        tag = '@%s' % (tag);
+    else:
+        tag = '@%s(%s)' % (tag, attribute);
+
+    pos = selector_in_region(view, "markup.list.item", region).end();
+    
+    # Keep white space at the end
+    while re.match('\s', view.substr(pos - 1)):
+        pos = pos - 1;
+
+    view.insert(edit, pos, ' ' + tag);
+
+def remove_tag(view, edit, region, tag):
+    tags = all_selectors_in_region(view, "meta.tag.todo", region);
+    # Delete them in reverse so the search doesn't get messed up
+    tags.reverse();
+    for reg in tags:
+        name = selector_in_region(view, "entity.name.tag.todo", reg);
+        logging.info('Tag: %s - %s' % (view.substr(name), name));
+        if view.substr(name).casefold() == tag.casefold():
+            view.erase(edit, sublime.Region(reg.begin() - 1, reg.end()));
 
 class PlainTasksNewCommand(PlainTasksBase):
     def runCommand(self, edit):
@@ -150,7 +175,36 @@ class PlainTasksNewWithDateCommand(PlainTasksBase):
 
 
 class PlainTasksCompleteCommand(PlainTasksBase):
+    def complete(self, edit, region):
+        view = self.view;
+
+        bullet = selector_in_region(view, "punctuation.definition.bullet", region);
+        pending = selector_in_region(view, "markup.list.item.pending", region);
+        if pending is not None:
+            view.replace(edit, bullet, self.done_tasks_bullet);
+            add_tag(view, edit, region, 'done', tznow().strftime(self.date_format));
+            return
+
+        completed = selector_in_region(view, "markup.list.item.completed", region);
+        if completed is not None:
+            view.replace(edit, bullet, self.open_tasks_bullet);
+            remove_tag(view, edit, region, 'done');
+            return
+
+        cancelled = selector_in_region(view, "markup.list.item.cancelled", region);
+        if cancelled is not None:
+            view.replace(edit, bullet, self.open_tasks_bullet);
+            remove_tag(view, edit, region, 'cancelled');
+            return
+
+
     def runCommand(self, edit):
+        view = self.view;
+
+        item_region = extract_selector(self.view, "meta.item.todo", view.sel()[0].begin());
+        if item_region is not None:
+            self.complete(edit, item_region);
+
         original = [r for r in self.view.sel()]
         done_line_end, now = self.format_line_end(self.done_tag, tznow())
         offset = len(done_line_end)

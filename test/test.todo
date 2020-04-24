@@ -30,7 +30,7 @@ Due tags highlighting:
 
 Project:
   ☐ simple
-  ☐ with tags @tag1 @tag2
+  ☐ with tags @tag1 (aa bb) @tag2
   Completed with done/cancel:
     ✔ done simple @done (13-06-27 10:08)
     ✘ canceled simple @cancelled (13-06-27 10:08)
@@ -42,6 +42,16 @@ Project:
     ✔ done with tags @tag1 @tag2  (13-06-27 10:09)
     ✘ cenceled with tags @tag1 @tag2  (13-06-27 10:09)
 
+Project 2: @fang
+  ☐ Low task  @tag @foo @bar
+  ☐ One task here @high 
+  ✔ Another one @critical @done
+    This one has some notes.
+
+    http://foobar.com
+
+    And more notes
+  ✔ Done task @done (20-04-23 12:05)
 ＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿
 Archive:
   ✔ done simple @done (13-06-27 10:08) @project(Project / Completed with done/cancel)

@@ -83,7 +83,7 @@
         {
             "name": "Done task",
             "scope": "markup.list.item.completed.todo",
-            "foreground": "var(cancelled)",
+            "foreground": "var(completed)",
             "font_style": "italic"
         },
         {

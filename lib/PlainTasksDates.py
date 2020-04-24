@@ -9,15 +9,11 @@ from datetime import datetime
 from datetime import timedelta
 
 NT = sublime.platform() == 'windows'
-ST3 = int(sublime.version()) >= 3000
-if ST3:
-    from .APlainTasksCommon import PlainTasksBase, PlainTasksEnabled, PlainTasksFold
-    MARK_SOON = sublime.DRAW_NO_FILL
-    MARK_INVALID = sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE | sublime.DRAW_SQUIGGLY_UNDERLINE
-else:
-    from APlainTasksCommon import PlainTasksBase, PlainTasksEnabled, PlainTasksFold
-    MARK_SOON = MARK_INVALID = 0
-    sublime_plugin.ViewEventListener = object
+
+from .PlainTasksCommon import PlainTasksBase, PlainTasksEnabled, PlainTasksFold
+MARK_SOON = sublime.DRAW_NO_FILL
+MARK_INVALID = sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE | sublime.DRAW_SQUIGGLY_UNDERLINE
+
 
 
 try:  # unavailable dependencies shall not break basic functionality

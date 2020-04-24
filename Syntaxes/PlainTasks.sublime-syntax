@@ -14,19 +14,20 @@ variables:
   project: '(\#?\s?\w+.*?:\s*?(\@[^\s]+(\(.*?\))?\s*?)*$\n?)'
   tag_start: '(?<=\s)(\@)'
   tag_end: '(\s?\([^\)]+\))?'
-  tag: '{{tag_start}}([\w\d-]+){{tag_end}}'
+  tag_name: '([\w\d-]+)'
+  tag: '{{tag_start}}{{tag_name}}{{tag_end}}'
 contexts:
   main:
     - include: project
     - include: task
   project:
     - match: '^\s*{{project}}'
-      scope: keyword.control.header.todo
+      scope: markup.heading.project.todo
   task:
     - match: '^\s*(?={{task}})'
       push: [item.meta, item.todo]
   item.meta:
-    - meta_scope: meta.item.todo
+    - meta_content_scope: meta.item.todo
     - match: ''
       pop: true
   item.todo:
@@ -45,34 +46,36 @@ contexts:
     - match: $
       set: notes
   item.todo.completed:
-    - meta_scope: comment.line.completed.todo
+    - meta_scope: markup.list.item.completed.todo
     - match: '{{tag}}'
-      scope: meta.tag.todo.completed
+      scope: entity.name.tag.completed.todo
     - match: '(?=$)'
       pop: true
   item.todo.cancelled:
-    - meta_scope: meta.item.todo.cancelled
+    - meta_scope: markup.list.item.cancelled.todo
     - match: '{{tag}}'
-      scope: meta.tag.todo.cancelled
+      scope: entity.name.tag.cancelled.todo
     - match: '(?=$)'
       pop: true
   item.todo.pending:
-    - meta_scope: meta.item.todo.pending
+    - meta_scope: markup.list.item.pending.todo
     - match: '{{tag_start}}(?=[\w\d-]+)'
       captures:
-        1: meta.tag.character
+        1: punctuation.definition.annotation.todo
       push: tag
     - match: '(?=$)'
       pop: true
   tag:
     - meta_scope: meta.tag.todo
-    - match: '\s(?=[^(])'
+    - match: '(?<=\@){{tag_name}}'
+      scope: entity.name.tag.todo
+    - match: '\([^\)]+\)'
+      scope: entity.other.attribute.todo
+    - match: '(?=\s[^(])'
       pop: true
-    - match: '(\s?\([^\)]+\))'
-      scope: meta.tag.attribute
     - match: '(?=$)'
       pop: true
   notes:
-    - meta_content_scope: notes.todo
+    - meta_content_scope: markup.notes.todo
     - match: '(?=^\s*({{task}}|{{project}}))'
       pop: true

@@ -17,12 +17,8 @@ if ST2 and platform == 'linux':
 else:
     import io
 
-if not ST2:
-    from .plist_parser import parse_file
-    from .PlainTasks import PlainTasksBase
-else:
-    from plist_parser import parse_file
-    from PlainTasks import PlainTasksBase
+from .plist_parser import parse_file
+from .PlainTasksCommon import PlainTasksBase
 
 
 def hex_to_rgba(value):
