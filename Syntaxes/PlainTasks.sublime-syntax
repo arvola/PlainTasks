@@ -23,6 +23,10 @@ contexts:
   project:
     - match: '^\s*{{project}}'
       scope: keyword.other.project.todo
+      # Note that the newline at the end is already part of the notes.
+      # This makes it easier to tie the notes scope to the item it belongs to.
+    - match: $
+      set: notes
   task:
     - match: '^\s*(?={{task}})'
       push: [item.meta, item.todo]
