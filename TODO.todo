@@ -1,3 +1,8 @@
+arvola:
+  ☐ Calculate time for tasks on done
+  ☐ Fix selections when marking tasks done/cancelled
+  ☐ Fix stats
+
 TODO:
  ☐ make file links highlighted @feature
  ☐ use control+shift+A to only archive the first level tasks (or current level of indent) @feature

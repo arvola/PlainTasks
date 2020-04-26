@@ -22,7 +22,7 @@ contexts:
     - include: task
   project:
     - match: '^\s*{{project}}'
-      scope: markup.heading.project.todo
+      scope: keyword.other.project.todo
   task:
     - match: '^\s*(?={{task}})'
       push: [item.meta, item.todo]
@@ -30,52 +30,131 @@ contexts:
     - meta_content_scope: meta.item.todo
     - match: ''
       pop: true
+
   item.todo:
-    - match: '({{done}})\s+'
-      push: item.todo.completed
-      captures:
-        1: punctuation.definition.bullet.completed.todo
-    - match: '({{cancelled}})\s+'
-      push: item.todo.cancelled
-      captures:
-        1: punctuation.definition.bullet.cancelled.todo
+    - meta_content_scope: meta.item.heading.todo
     - match: '({{pending}})\s+'
-      push: item.todo.pending
       captures:
-        1: punctuation.definition.bullet.pending.todo
+        1: markup.pending.bullet.todo meta.item.bullet.todo
+      push: item.todo.pending
+
+    - match: '({{done}})\s+'
+      captures:
+        1: markup.inserted.bullet.completed.todo meta.item.bullet.todo
+      push:
+        - meta_scope: string.item.completed.todo
+        - include: item.todo.completed
+
+    - match: '({{cancelled}})\s+'
+      captures:
+        1: markup.deleted.bullet.completed.todo meta.item.bullet.todo
+      push:
+        - meta_scope: string.item.cancelled.todo
+        - include: item.todo.cancelled
+
+      # Note that the newline at the end is already part of the notes.
+      # This makes it easier to tie the notes scope to the item it belongs to.
     - match: $
       set: notes
-  item.todo.completed:
-    - meta_scope: markup.list.item.completed.todo
-    - match: '{{tag}}'
-      scope: entity.name.tag.completed.todo
-    - match: '(?=$)'
-      pop: true
-  item.todo.cancelled:
-    - meta_scope: markup.list.item.cancelled.todo
-    - match: '{{tag}}'
-      scope: entity.name.tag.cancelled.todo
-    - match: '(?=$)'
-      pop: true
   item.todo.pending:
     - meta_scope: markup.list.item.pending.todo
     - match: '{{tag_start}}(?=[\w\d-]+)'
       captures:
-        1: punctuation.definition.annotation.todo
-      push: tag
+        1: punctuation.definition.constant.tag.pending.todo
+      push: tag_pending
     - match: '(?=$)'
       pop: true
-  tag:
+  item.todo.completed:
+    - meta_scope: diff.inserted.item.completed.todo
+    - match: '{{tag_start}}(?=[\w\d-]+)'
+      captures:
+        1: punctuation.definition.constant.tag.completed.todo
+      push: tag_completed
+    - match: '(?=$)'
+      pop: true
+  item.todo.cancelled:
+    - meta_scope: diff.deleted.item.cancelled.todo
+    - match: '{{tag_start}}(?=[\w\d-]+)'
+      captures:
+        1: punctuation.definition.constant.tag.cancelled.todo
+      push: tag_cancelled
+    - match: '(?=$)'
+      pop: true
+
+# The three different tag definitions are the same except for the scope names.
+  tag_pending:
     - meta_scope: meta.tag.todo
     - match: '(?<=\@){{tag_name}}'
-      scope: entity.name.tag.todo
-    - match: '\([^\)]+\)'
-      scope: entity.other.attribute.todo
+      scope: support.constant.name.tag.pending.todo
+    - match: '(?=\()'
+      push:
+        - meta_scope: constant.other.attribute.pending.todo
+        - match: '(\()'
+          captures:
+            1: punctuation.section.parens.attribute.pending.begin.todo
+          push:
+            - match: '(?=\))'
+              pop: true
+            - match: '[^\)]*'
+              scope: entity.other.attribute.content.pending.todo
+        - match: '(\))'
+          captures:
+            1: punctuation.section.parens.attribute.pending.end.todo
+          pop: true
+
+    - match: '(?=\s[^(])'
+      pop: true
+    - match: '(?=$)'
+      pop: true
+  tag_completed:
+    - meta_scope: meta.tag.todo
+    - match: '(?<=\@){{tag_name}}'
+      scope: support.constant.name.tag.completed.todo
+    - match: '(?=\()'
+      push:
+        - meta_scope: constant.other.attribute.completed.todo
+        - match: '(\()'
+          captures:
+            1: punctuation.section.parens.attribute.completed.begin.todo
+          push:
+            - match: '(?=\))'
+              pop: true
+            - match: '[^\)]*'
+              scope: entity.other.attribute.content.completed.todo
+        - match: '(\))'
+          captures:
+            1: punctuation.section.parens.attribute.completed.end.todo
+          pop: true
+
+    - match: '(?=\s[^(])'
+      pop: true
+    - match: '(?=$)'
+      pop: true
+  tag_cancelled:
+    - meta_scope: meta.tag.todo
+    - match: '(?<=\@){{tag_name}}'
+      scope: support.constant.name.tag.cancelled.todo
+    - match: '(?=\()'
+      push:
+        - meta_scope: constant.other.attribute.cancelled.todo
+        - match: '(\()'
+          captures:
+            1: punctuation.section.parens.attribute.cancelled.begin.todo
+          push:
+            - match: '(?=\))'
+              pop: true
+            - match: '[^\)]*'
+              scope: entity.other.attribute.content.cancelled.todo
+        - match: '(\))'
+          captures:
+            1: punctuation.section.parens.attribute.cancelled.end.todo
+          pop: true
+
     - match: '(?=\s[^(])'
       pop: true
     - match: '(?=$)'
       pop: true
   notes:
-    - meta_content_scope: markup.notes.todo
+    - meta_content_scope: comment.notes.todo
     - match: '(?=^\s*({{task}}|{{project}}))'
       pop: true

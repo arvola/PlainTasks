@@ -23,11 +23,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import sublime
 from sublime import Region
 
 __all__ = ['has_file_ext', 'base_scope',
            'coorded_substr', 'get_text',
            'get_viewport_coords', 'set_viewport',
+           'adjust_region',
            'extract_selector', 'selector_in_region',
            'all_selectors_in_region']
 
@@ -156,6 +158,21 @@ def get_viewport_coords(view):
     """
     return view.rowcol(get_viewport_point(view))
 
+def adjust_region(region, adjustment):
+    """Modifies the given region to account for added or removed text.
+
+    Adjustment should be a Region for the added text. If text was removed
+    it should have b as the starting position of removal, and a as the
+    start minus the length
+    """
+    if adjustment.size() > 0 and region.begin() > adjustment.a:
+        if adjustment.a > adjustment.b:
+            return sublime.Region(region.a - adjustment.size(), region.b - adjustment.size());
+        else:
+            return sublime.Region(region.a + adjustment.size(), region.b + adjustment.size());
+
+    return region;
+
 
 def set_viewport(view, row, col=None):
     """Sets the current viewport from either a text point or relative coords.
@@ -207,13 +224,19 @@ def selector_in_region(view, selector, region):
             return reg
     return None
 
-def all_selectors_in_region(view, selector, region):
-    """Searches for all occurrences of a selector fully inside the
+def all_selectors_in_region(view, selector, region, partial = False):
+    """Searches for all occurrences of a selector inside the
     given Region.
+
+    If partial is True, also includes selectors that are partially inside
+    the region.
 
     Example:
         all_selectors_in_region(view, "source string", view.sel()[0])
 
     Returns all matching Regions.
     """
-    return [it for it in view.find_by_selector(selector) if region.contains(it)]
+    if partial is True:
+        return [it for it in view.find_by_selector(selector) if region.intersects(it)]
+    else:
+        return [it for it in view.find_by_selector(selector) if region.contains(it)]

@@ -1,15 +1,11 @@
 ## [PlainTasks](https://github.com/aziz/PlainTasks) 
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/8d42f3e49d104ab8bf663392661b183b)](https://www.codacy.com/app/allen-bargi/PlainTasks?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=aziz/PlainTasks&amp;utm_campaign=Badge_Grade)
 
-An opinionated todo-list plugin for Sublime Text (2 & 3) editor
+An opinionated todo-list plugin for Sublime Text 3 editor
 ![](http://cl.ly/image/1q100Q212o2Q/ss.png)
 
 ## Installation
-To install this plugin, you have two options:
 
-1. If you have Package Control installed, simply search for `PlainTasks` to install.
-
-2. Clone source code to Sublime Text packages folder.
+Clone source code to Sublime Text packages folder.
 
 ## Start a new todo-list
 Bring up the command palette (it’s <kbd>⌘ + shift + p</kbd> in OS X and <kbd>ctrl + shift + p</kbd> in Windows) and type `task` and select `Tasks: New document` command. 

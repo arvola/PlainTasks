@@ -14,22 +14,21 @@
         "comment": "#b6cf9d",
         "grey": "#3b3a32",
         "orange": "#ff7f00",
-        "done": "#d3d0c8",
-        "done_tags": "color(var(done) alpha(0.31))",
-        "cancelled_tags": "color(var(done) alpha(0.31))",
+        "project": "#f92672",
+        "project_background": "color(var(selection) alpha(0.5))",
+        "completed": "var(comment)",
+        "completed_bullet": "#a6e22e",
+        "completed_tags": "color(var(completed) alpha(0.31))",
+        "cancelled_bullet": "#aa1f2a",
+        "cancelled": "#71585A",
+        "cancelled_tags": "color(var(cancelled) alpha(0.5))",
         "notes": "#807a62",
         "today": "#ae81ff",
-        "project_background": "color(var(selection) alpha(0.5))",
         "url": "#003e7290",
         "tag": "#65d8e6",
-        "cancelled_bullet": "#aa1f2a",
-        "project": "#f92672",
         "critical": "#ff0000",
         "text_modifiers": "#d3d0c860",
         "white": "#ffffff",
-        "completed": "var(comment)",
-        "completed_bullet": "#a6e22e",
-        "cancelled": "#75715e",
         "separator": "var(cancelled)"
     },
     "globals":
@@ -47,26 +46,38 @@
     "rules":
     [
         {
-            "name": "Comment",
-            "scope": "comment",
-            "foreground": "var(comment)",
-            "font_style": "italic"
+            "name": "Project",
+            "scope": "keyword",
+            "foreground": "var(project)",
+            "background": "var(project_background)",
+            "font_style": "bold underline"
         },
         {
-            "name": "Tags",
-            "scope": "entity.name.tag.todo",
+            "name": "Pending Tag Punctuation",
+            "scope": "punctuation.definition.constant.tag.pending",
             "foreground": "var(tag)",
             "font_style": "bold"
         },
         {
-            "name": "Tag punctuation",
-            "scope": "punctuation.definition.annotation.todo",
+            "name": "Pending Tag Name",
+            "scope": "support.constant.name.tag.pending",
+            "foreground": "var(tag)",
+            "font_style": "bold"
+        },
+        {
+            "name": "Pending Attribute Content",
+            "scope": "entity.other.attribute.content.pending",
+            "foreground": "var(tag)"
+        },
+        {
+            "name": "Pending Attribute Parenthesis",
+            "scope": "punctuation.section.parens.attribute.pending",
             "foreground": "var(tag)",
             "font_style": "bold"
         },
         {
             "name": "Notes",
-            "scope": "markup.notes.todo",
+            "scope": "comment",
             "foreground": "var(notes)"
         },
         {
@@ -75,44 +86,71 @@
             "font_style": "italic"
         },
         {
-            "name": "Done bullet",
-            "scope": "punctuation.definition.bullet.completed",
+            "name": "Completed bullet",
+            "scope": "markup.inserted",
             "foreground": "var(completed_bullet)",
             "font_style": "bold"
         },
         {
-            "name": "Done task",
-            "scope": "markup.list.item.completed.todo",
+            "name": "Completed task",
+            "scope": "string.item.completed",
             "foreground": "var(completed)",
             "font_style": "italic"
         },
         {
+            "name": "Completed tags punctuation",
+            "scope": "punctuation.definition.constant.tag.completed",
+            "foreground": "var(completed_tags)"
+        },
+        {
+            "name": "Completed tags",
+            "scope": "support.constant.name.tag.completed",
+            "foreground": "var(completed_tags)",
+            "font_style": "bold"
+        },
+        {
+            "name": "Completed Attribute Content",
+            "scope": "entity.other.attribute.content.completed",
+            "foreground": "var(completed_tags)"
+        },
+        {
+            "name": "Completed Attribute Parenthesis",
+            "scope": "punctuation.section.parens.attribute.completed",
+            "foreground": "var(completed_tags)",
+            "font_style": "bold"
+        },
+        {
             "name": "Cancelled bullet",
-            "scope": "punctuation.definition.bullet.cancelled",
+            "scope": "markup.deleted",
             "foreground": "var(cancelled_bullet)"
         },
         {
             "name": "Cancelled task",
-            "scope": "markup.list.item.cancelled.todo",
+            "scope": "string.item.cancelled",
             "foreground": "var(cancelled)",
             "font_style": "italic"
         },
         {
-            "name": "Done tags",
-            "scope": "entity.name.tag.completed.todo",
-            "foreground": "var(done_tags)"
-        },
-        {
-            "name": "Cancel tags",
-            "scope": "entity.name.tag.cancelled.todo",
+            "name": "Cancelled tags punctuation",
+            "scope": "punctuation.definition.constant.tag.cancelled",
             "foreground": "var(cancelled_tags)"
         },
         {
-            "name": "Project",
-            "scope": "markup.heading",
-            "foreground": "var(project)",
-            "background": "var(project_background)",
-            "font_style": "bold underline"
+            "name": "Cancelled tags",
+            "scope": "support.constant.name.tag.cancelled",
+            "foreground": "var(cancelled_tags)",
+            "font_style": "bold"
+        },
+        {
+            "name": "Cancelled Attribute Content",
+            "scope": "entity.other.attribute.content.cancelled",
+            "foreground": "var(cancelled_tags)"
+        },
+        {
+            "name": "Cancelled Attribute Parenthesis",
+            "scope": "punctuation.section.parens.attribute.cancelled",
+            "foreground": "var(cancelled_tags)",
+            "font_style": "bold"
         },
         {
             "name": "Archive Separator",

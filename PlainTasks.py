@@ -11,9 +11,9 @@ from datetime import datetime, tzinfo, timedelta
 import time
 import logging
 
-from .lib.view_utils import extract_selector, selector_in_region, all_selectors_in_region
+from .lib.view_utils import extract_selector, selector_in_region, all_selectors_in_region, adjust_region
 
-logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 platform = sublime.platform()
 ST3 = int(sublime.version()) >= 3000
@@ -80,26 +80,101 @@ def add_tag(view, edit, region, tag, attribute = None):
     else:
         tag = '@%s(%s)' % (tag, attribute);
 
-    pos = selector_in_region(view, "markup.list.item", region).end();
+    pos = selector_in_region(view, "meta.item.heading", region).end();
     
     # Keep white space at the end
     while re.match('\s', view.substr(pos - 1)):
         pos = pos - 1;
 
-    view.insert(edit, pos, ' ' + tag);
+    length = view.insert(edit, pos, ' ' + tag);
+    return sublime.Region(pos, pos + length);
 
 def remove_tag(view, edit, region, tag):
     tags = all_selectors_in_region(view, "meta.tag.todo", region);
     # Delete them in reverse so the search doesn't get messed up
     tags.reverse();
+    length = 0
+    pos = 0
     for reg in tags:
-        name = selector_in_region(view, "entity.name.tag.todo", reg);
-        logging.info('Tag: %s - %s' % (view.substr(name), name));
+        name = selector_in_region(view, "support.constant.name.tag", reg);
         if view.substr(name).casefold() == tag.casefold():
-            view.erase(edit, sublime.Region(reg.begin() - 1, reg.end()));
+            erased = sublime.Region(reg.begin() - 1, reg.end())
+            view.erase(edit, erased);
+            length += erased.size();
+            pos = erased.begin();
+
+    return sublime.Region(pos, pos - length);
 
 class PlainTasksNewCommand(PlainTasksBase):
+    def newTaskBelow(self, edit, pos):
+        view = self.view
+        region = extract_selector(view, "meta.item.todo", pos)
+        indent_end = region.begin()
+        indent_begin = indent_end
+        while re.match(r'[^\S\n\r]', view.substr(indent_begin - 1)):
+            indent_begin -= 1
+
+        indent = view.substr(sublime.Region(indent_begin, indent_end))
+        length = view.insert(edit, region.end(), "%s%s%s\n" % (indent, self.open_tasks_bullet, self.tasks_bullet_space))
+        # Position for a cursor for the new item, -1 is for the newline
+        return [sublime.Region(region.end() + length - 1), sublime.Region(region.end(), region.end() + length)]
+
+    def convertLine(self, edit, line, convert_blank = False):
+        view = self.view
+        pos = re.search(r'\S', view.substr(line))
+        if not pos:
+            if convert_blank:
+                pos = line.end()
+            else:
+                return [None, None]
+        else:
+            pos = line.begin() + pos.start()
+
+        length = view.insert(edit, pos, self.open_tasks_bullet + self.tasks_bullet_space)
+        return [sublime.Region(pos + length), sublime.Region(pos, pos + length)]
+
     def runCommand(self, edit):
+        view = self.view
+
+        selections = [it for it in view.sel()]
+        # Reverse so changes don't affect the rest of the list
+        selections.reverse()
+        cursors = []
+
+        for sel in selections:
+            # Adjust the selection region by 1 because the newline at the end of an item heading
+            # is already out of scope, but we want to include the item in the scope if the selection
+            # begins at the newline
+            item_regions = all_selectors_in_region(view, "meta.item.heading.todo", sublime.Region(sel.begin() - 1, sel.end()), True)
+            # Selection overlaps with heading(s), add new tasks beneath
+            if item_regions:
+                item_regions.reverse()
+                for item in item_regions:
+                    [cursor, adjust] = self.newTaskBelow(edit, item.begin())
+                    # Adjust cursors we already have with the insertion
+                    cursors = list(map(lambda c: adjust_region(c, adjust), cursors))
+                    cursors.append(cursor)
+            else: 
+                lines = view.lines(sel)
+                lines_region = sublime.Region(lines[0].begin(), lines[-1].end())
+                # If the selected lines only have whitespace, convert blank lines as well
+                logging.info('Lines "%s"' % (view.substr(lines_region)))
+                convert_blank = not re.search(r'\S', view.substr(lines_region))
+
+                lines.reverse()
+                for line in lines:
+                    [cursor, adjust] = self.convertLine(edit, line, convert_blank)
+                    if adjust:
+                        cursors = list(map(lambda c: adjust_region(c, adjust), cursors))
+                        if convert_blank:
+                            cursors.append(cursor)
+
+
+        if cursors:
+            view.sel().clear();
+            view.sel().add_all(cursors);
+
+    def oldCommand(self, edit):
         # list for ST3 support;
         # reversed because with multiple selections regions would be messed up after first iteration
         regions = itertools.chain(*(reversed(self.view.lines(region)) for region in reversed(list(self.view.sel()))))
@@ -176,125 +251,102 @@ class PlainTasksNewWithDateCommand(PlainTasksBase):
 
 class PlainTasksCompleteCommand(PlainTasksBase):
     def complete(self, edit, region):
-        view = self.view;
+        view = self.view
 
-        bullet = selector_in_region(view, "punctuation.definition.bullet", region);
-        pending = selector_in_region(view, "markup.list.item.pending", region);
+        bullet = selector_in_region(view, "meta.item.bullet", region)
+        pending = selector_in_region(view, "markup.list.item.pending", region)
         if pending is not None:
-            view.replace(edit, bullet, self.done_tasks_bullet);
-            add_tag(view, edit, region, 'done', tznow().strftime(self.date_format));
-            return
+            view.replace(edit, bullet, self.done_tasks_bullet)
+            return add_tag(view, edit, region, 'done', tznow().strftime(self.date_format))
+                # self.view.run_command(
+                #     'plain_tasks_calculate_time_for_task', {
+                #         'started_matches': started_matches,
+                #         'toggle_matches': toggle_matches,
+                #         'now': now,
+                #         'eol': line.a + len(replacement) + len_dle}
+                # )
 
-        completed = selector_in_region(view, "markup.list.item.completed", region);
+        completed = selector_in_region(view, "string.item.completed", region)
         if completed is not None:
-            view.replace(edit, bullet, self.open_tasks_bullet);
-            remove_tag(view, edit, region, 'done');
-            return
+            view.replace(edit, bullet, self.open_tasks_bullet)
+            return remove_tag(view, edit, region, 'done')
 
-        cancelled = selector_in_region(view, "markup.list.item.cancelled", region);
+        cancelled = selector_in_region(view, "string.item.cancelled", region)
         if cancelled is not None:
-            view.replace(edit, bullet, self.open_tasks_bullet);
-            remove_tag(view, edit, region, 'cancelled');
+            view.replace(edit, bullet, self.done_tasks_bullet)
+            remove_tag(view, edit, region, 'cancelled')
+            add_tag(view, edit, region, 'done', tznow().strftime(self.date_format))
+                # self.view.run_command(
+                #     'plain_tasks_calculate_time_for_task', {
+                #         'started_matches': started_matches,
+                #         'toggle_matches': toggle_matches,
+                #         'now': now,
+                #         'eol': line.a + len(replacement) + len_dle}
+                # )
             return
 
 
     def runCommand(self, edit):
-        view = self.view;
+        view = self.view
 
-        item_region = extract_selector(self.view, "meta.item.todo", view.sel()[0].begin());
-        if item_region is not None:
-            self.complete(edit, item_region);
+        selections = [it for it in view.sel()]
+        # Reverse so changes don't affect the rest of the list
+        selections.reverse()
+        for sel in selections:
+            item_regions = all_selectors_in_region(self.view, "meta.item.todo", sel, True)
+            item_regions.reverse()
+            for item in item_regions:
+                self.complete(edit, item)
 
-        original = [r for r in self.view.sel()]
-        done_line_end, now = self.format_line_end(self.done_tag, tznow())
-        offset = len(done_line_end)
-        rom = r'^(\s*)(\[\s\]|.)(\s*.*)$'
-        rdm = r'''
-            (?x)^(\s*)(\[x\]|.)                           # 0,1 indent & bullet
-            (\s*[^\b]*?(?:[^\@]|(?<!\s)\@|\@(?=\s))*?\s*) #   2 very task
-            (?=
-              ((?:\s@done|@project|@[wl]asted|$).*)   # 3 ending either w/ done or w/o it & no date
-              |                                       #   or
-              (?:[ \t](\([^()]*\))\s*([^@]*|(?:@project|@[wl]asted).*))?$ # 4 date & possible project tag after
-            )
-            '''  # rcm is the same, except bullet & ending
-        rcm = r'^(\s*)(\[\-\]|.)(\s*[^\b]*?(?:[^\@]|(?<!\s)\@|\@(?=\s))*?\s*)(?=((?:\s@cancelled|@project|@[wl]asted|$).*)|(?:[ \t](\([^()]*\))\s*([^@]*|(?:@project|@[wl]asted).*))?$)'
-        started = r'^\s*[^\b]*?\s*@started(\([\d\w,\.:\-\/ @]*\)).*$'
-        toggle = r'@toggle(\([\d\w,\.:\-\/ @]*\))'
-
-        regions = itertools.chain(*(reversed(self.view.lines(region)) for region in reversed(list(self.view.sel()))))
-        for line in regions:
-            line_contents = self.view.substr(line)
-            open_matches = re.match(rom, line_contents, re.U)
-            done_matches = re.match(rdm, line_contents, re.U)
-            canc_matches = re.match(rcm, line_contents, re.U)
-            started_matches = re.findall(started, line_contents, re.U)
-            toggle_matches = re.findall(toggle, line_contents, re.U)
-
-            done_line_end = done_line_end.rstrip()
-            if line_contents.endswith('  '):
-                done_line_end += '  '  # keep double whitespace at eol
-                dblspc = '  '
-            else:
-                dblspc = ''
-
-            current_scope = self.view.scope_name(line.a)
-            if 'pending' in current_scope:
-                grps = open_matches.groups()
-                len_dle = self.view.insert(edit, line.end(), done_line_end)
-                replacement = u'%s%s%s' % (grps[0], self.done_tasks_bullet, grps[2].rstrip())
-                self.view.replace(edit, line, replacement)
-                self.view.run_command(
-                    'plain_tasks_calculate_time_for_task', {
-                        'started_matches': started_matches,
-                        'toggle_matches': toggle_matches,
-                        'now': now,
-                        'eol': line.a + len(replacement) + len_dle}
-                )
-            elif 'header' in current_scope:
-                eol = self.view.insert(edit, line.end(), done_line_end)
-                self.view.run_command(
-                    'plain_tasks_calculate_time_for_task', {
-                        'started_matches': started_matches,
-                        'toggle_matches': toggle_matches,
-                        'now': now,
-                        'eol': line.end() + eol}
-                )
-                indent = re.match('^(\s*)\S', line_contents, re.U)
-                self.view.insert(edit, line.begin() + len(indent.group(1)), '%s ' % self.done_tasks_bullet)
-                self.view.run_command('plain_tasks_calculate_total_time_for_project', {'start': line.a})
-            elif 'completed' in current_scope:
-                grps = done_matches.groups()
-                parentheses = check_parentheses(self.date_format, grps[4] or '')
-                replacement = u'%s%s%s%s' % (grps[0], self.open_tasks_bullet, grps[2], parentheses)
-                self.view.replace(edit, line, replacement.rstrip() + dblspc)
-                offset = -offset
-            elif 'cancelled' in current_scope:
-                grps = canc_matches.groups()
-                len_dle = self.view.insert(edit, line.end(), done_line_end)
-                parentheses = check_parentheses(self.date_format, grps[4] or '')
-                replacement = u'%s%s%s%s' % (grps[0], self.done_tasks_bullet, grps[2], parentheses)
-                self.view.replace(edit, line, replacement.rstrip())
-                offset = -offset
-                self.view.run_command(
-                    'plain_tasks_calculate_time_for_task', {
-                        'started_matches': started_matches,
-                        'toggle_matches': toggle_matches,
-                        'now': now,
-                        'eol': line.a + len(replacement) + len_dle}
-                )
-        self.view.sel().clear()
-        for ind, pt in enumerate(original):
-            ofs = ind * offset
-            new_pt = sublime.Region(pt.a + ofs, pt.b + ofs)
-            self.view.sel().add(new_pt)
+        # self.view.sel().clear()
+        # for ind, pt in enumerate(original):
+        #     ofs = ind * offset
+        #     new_pt = sublime.Region(pt.a + ofs, pt.b + ofs)
+        #     self.view.sel().add(new_pt)
 
         PlainTasksStatsStatus.set_stats(self.view)
         self.view.run_command('plain_tasks_toggle_highlight_past_due')
 
 
 class PlainTasksCancelCommand(PlainTasksBase):
+    def cancel(self, edit, region):
+        view = self.view
+
+        bullet = selector_in_region(view, "meta.item.bullet", region)
+        pending = selector_in_region(view, "markup.list.item.pending", region)
+        if pending is not None:
+            view.replace(edit, bullet, self.canc_tasks_bullet)
+            return add_tag(view, edit, region, 'cancelled', tznow().strftime(self.date_format))
+
+        cancelled = selector_in_region(view, "string.item.cancelled", region)
+        if cancelled is not None:
+            view.replace(edit, bullet, self.open_tasks_bullet)
+            remove_tag(view, edit, region, 'cancelled')
+            return
+
+
     def runCommand(self, edit):
+        view = self.view
+
+        selections = [it for it in view.sel()]
+        # Reverse so changes don't affect the rest of the list
+        selections.reverse()
+        for sel in selections:
+            item_regions = all_selectors_in_region(self.view, "meta.item.todo", sel, True)
+            item_regions.reverse()
+            for item in item_regions:
+                self.cancel(edit, item)
+
+        # self.view.sel().clear()
+        # for ind, pt in enumerate(original):
+        #     ofs = ind * offset
+        #     new_pt = sublime.Region(pt.a + ofs, pt.b + ofs)
+        #     self.view.sel().add(new_pt)
+
+        PlainTasksStatsStatus.set_stats(self.view)
+        self.view.run_command('plain_tasks_toggle_highlight_past_due')
+
+    def oldCommand(self, edit):
         original = [r for r in self.view.sel()]
         canc_line_end, now = self.format_line_end(self.canc_tag, tznow())
         offset = len(canc_line_end)
