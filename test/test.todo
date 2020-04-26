@@ -1,4 +1,9 @@
+
+
+
 Due tags highlighting:
+
+
   ☐ misformated @due( 2-31)
     February 31st
 
@@ -35,7 +40,7 @@ Project:
     ✔ done simple @done (13-06-27 10:08)
     ✘ canceled simple @cancelled (13-06-27 10:08)
     ✔ done with tags @tag1 @tag2 @done (13-06-27 10:08)
-    ✘ cenceled with tags @tag1 @tag2 @cancelled (13-06-27 10:08)
+    ✘ cenceled with tags @tag1 @tag2 @cancelled (13-06-27 10:08) @tag3
   Completed without done/cancel:
     ✔ done simple  (13-06-27 10:09)
     ✘ canceled simple  (13-06-27 10:09)
@@ -49,7 +54,7 @@ Project 2: @fang
     This one has some notes.
 
     http://foobar.com
-    
+
     And more notes
   ✔ Done task @done (20-04-23 12:05)
 ＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿

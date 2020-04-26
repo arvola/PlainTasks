@@ -2,11 +2,6 @@
 import sublime, sublime_plugin
 import itertools
 
-ST3 = int(sublime.version()) >= 3000
-if not ST3:
-    import locale
-
-
 def get_all_projects_and_separators(view):
     # because tmLanguage need \n to make background full width of window
     # multiline headers are possible, thus we have to split em to be sure that
@@ -49,8 +44,6 @@ class PlainTasksBase(sublime_plugin.TextCommand):
         self.archive_org_default_filemask = u'{dir}{sep}{base}_archive{ext}'
         self.archive_org_filemask = settings.get('archive_org_filemask', self.archive_org_default_filemask)
 
-        if not ST3:
-            self.sys_enc = locale.getpreferredencoding()
         self.runCommand(edit, **kwargs)
 
     def format_line_end(self, tag, tznow):

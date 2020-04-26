@@ -10,49 +10,19 @@ import threading
 from datetime import datetime, tzinfo, timedelta
 import time
 import logging
+import io
+from datetime import timezone
 
 from .lib.view_utils import extract_selector, selector_in_region, all_selectors_in_region, adjust_region
+from .lib.PlainTasksCommon import PlainTasksBase, PlainTasksFold, get_all_projects_and_separators
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 platform = sublime.platform()
-ST3 = int(sublime.version()) >= 3000
-
-from .lib.PlainTasksCommon import PlainTasksBase, PlainTasksFold, get_all_projects_and_separators
-
-
-# io is not operable in ST2 on Linux, but in all other cases io is better
-# https://github.com/SublimeTextIssues/Core/issues/254
-if not ST3 and platform == 'linux':
-    import codecs as io
-else:
-    import io
 
 NT = platform == 'windows'
 if NT:
     import subprocess
-
-if ST3:
-    from datetime import timezone
-else:
-    class timezone(tzinfo):
-        __slots__ = ("_offset", "_name")
-
-        def __init__(self, offset, name=None):
-            if not isinstance(offset, timedelta):
-                raise TypeError("offset must be a timedelta")
-            self._offset = offset
-            self._name = name
-
-        def utcoffset(self, dt):
-            return self._offset
-
-        def tzname(self, dt):
-            return self._name
-
-        def dst(self, dt):
-            return timedelta(0)
-
 
 def tznow():
     t = time.time()
@@ -158,7 +128,6 @@ class PlainTasksNewCommand(PlainTasksBase):
                 lines = view.lines(sel)
                 lines_region = sublime.Region(lines[0].begin(), lines[-1].end())
                 # If the selected lines only have whitespace, convert blank lines as well
-                logging.info('Lines "%s"' % (view.substr(lines_region)))
                 convert_blank = not re.search(r'\S', view.substr(lines_region))
 
                 lines.reverse()
@@ -168,85 +137,38 @@ class PlainTasksNewCommand(PlainTasksBase):
                         cursors = list(map(lambda c: adjust_region(c, adjust), cursors))
                         if convert_blank:
                             cursors.append(cursor)
-
-
         if cursors:
             view.sel().clear();
             view.sel().add_all(cursors);
-
-    def oldCommand(self, edit):
-        # list for ST3 support;
-        # reversed because with multiple selections regions would be messed up after first iteration
-        regions = itertools.chain(*(reversed(self.view.lines(region)) for region in reversed(list(self.view.sel()))))
-        header_to_task = self.view.settings().get('header_to_task', False)
-        # ST3 (3080) moves sel when call view.replace only by delta between original and
-        # new regions, so if sel is not in eol and we replace line with two lines,
-        # then cursor won’t be on next line as it should
-        sels = self.view.sel()
-        eol  = None
-        for i, line in enumerate(regions):
-            line_contents  = self.view.substr(line).rstrip()
-            not_empty_line = re.match('^(\s*)(\S.*)$', self.view.substr(line))
-            empty_line     = re.match('^(\s+)$', self.view.substr(line))
-            current_scope  = self.view.scope_name(line.a)
-            eol = line.b  # need for ST3 when new content has line break
-            if 'item' in current_scope:
-                grps = not_empty_line.groups()
-                line_contents = self.view.substr(line) + '\n' + grps[0] + self.open_tasks_bullet + self.tasks_bullet_space
-            elif 'header' in current_scope and line_contents and not header_to_task:
-                grps = not_empty_line.groups()
-                line_contents = self.view.substr(line) + '\n' + grps[0] + self.before_tasks_bullet_spaces + self.open_tasks_bullet + self.tasks_bullet_space
-            elif 'separator' in current_scope:
-                grps = not_empty_line.groups()
-                line_contents = self.view.substr(line) + '\n' + grps[0] + self.before_tasks_bullet_spaces + self.open_tasks_bullet + self.tasks_bullet_space
-            elif not ('header' and 'separator') in current_scope or header_to_task:
-                eol = None
-                if not_empty_line:
-                    grps = not_empty_line.groups()
-                    line_contents = (grps[0] if len(grps[0]) > 0 else self.before_tasks_bullet_spaces) + self.open_tasks_bullet + self.tasks_bullet_space + grps[1]
-                elif empty_line:  # only whitespaces
-                    grps = empty_line.groups()
-                    line_contents = grps[0] + self.open_tasks_bullet + self.tasks_bullet_space
-                else:  # completely empty, no whitespaces
-                    line_contents = self.before_tasks_bullet_spaces + self.open_tasks_bullet + self.tasks_bullet_space
-            else:
-                print('oops, need to improve PlainTasksNewCommand')
-            if eol:
-                # move cursor to eol of original line, workaround for ST3
-                sels.subtract(sels[~i])
-                sels.add(sublime.Region(eol, eol))
-            self.view.replace(edit, line, line_contents)
-
-        # convert each selection to single cursor, ready to type
-        new_selections = []
-        for sel in list(self.view.sel()):
-            eol = self.view.line(sel).b
-            new_selections.append(sublime.Region(eol, eol))
-        self.view.sel().clear()
-        for sel in new_selections:
-            self.view.sel().add(sel)
-
-        PlainTasksStatsStatus.set_stats(self.view)
-        self.view.run_command('plain_tasks_toggle_highlight_past_due')
 
 
 class PlainTasksNewWithDateCommand(PlainTasksBase):
     def runCommand(self, edit):
         self.view.run_command('plain_tasks_new')
-        sels = list(self.view.sel())
-        suffix = ' @created%s' % tznow().strftime(self.date_format)
-        points = []
-        for s in reversed(sels):
-            if self.view.substr(sublime.Region(s.b - 2, s.b)) == '  ':
-                point = s.b - 2  # keep double whitespace at eol
-            else:
-                point = s.b
-            self.view.insert(edit, point, suffix)
-            points.append(point)
-        self.view.sel().clear()
-        offset = len(suffix)
-        for i, sel in enumerate(sels):
-            self.view.sel().add(sublime.Region(points[~i] + i*offset, points[~i] + i*offset))
+
+        view = self.view
+
+        selections = [it for it in view.sel()]
+
+        # Reverse so changes don't affect the rest of the list
+        selections.reverse()
+        cursors = []
+
+        for sel in selections:
+            # Adjust the selection region by 1 because the newline at the end of an item heading
+            # is already out of scope, but we want to include the item in the scope if the selection
+            # begins at the newline
+            item_regions = all_selectors_in_region(view, "meta.item.heading.todo", sublime.Region(sel.begin() - 1, sel.end()), True)
+            if item_regions:
+                item_regions.reverse()
+                for item in item_regions:
+                    tag_region = add_tag(view, edit, item, 'created', tznow().strftime(self.date_format))
+                    # Adjust cursors we already have with the insertion
+                    cursors = list(map(lambda c: adjust_region(c, tag_region), cursors))
+                    cursors.append(sublime.Region(sel.begin()))
+        if cursors:
+            view.sel().clear();
+            view.sel().add_all(cursors);
 
 
 class PlainTasksCompleteCommand(PlainTasksBase):
@@ -258,13 +180,6 @@ class PlainTasksCompleteCommand(PlainTasksBase):
         if pending is not None:
             view.replace(edit, bullet, self.done_tasks_bullet)
             return add_tag(view, edit, region, 'done', tznow().strftime(self.date_format))
-                # self.view.run_command(
-                #     'plain_tasks_calculate_time_for_task', {
-                #         'started_matches': started_matches,
-                #         'toggle_matches': toggle_matches,
-                #         'now': now,
-                #         'eol': line.a + len(replacement) + len_dle}
-                # )
 
         completed = selector_in_region(view, "string.item.completed", region)
         if completed is not None:
@@ -276,13 +191,6 @@ class PlainTasksCompleteCommand(PlainTasksBase):
             view.replace(edit, bullet, self.done_tasks_bullet)
             remove_tag(view, edit, region, 'cancelled')
             add_tag(view, edit, region, 'done', tznow().strftime(self.date_format))
-                # self.view.run_command(
-                #     'plain_tasks_calculate_time_for_task', {
-                #         'started_matches': started_matches,
-                #         'toggle_matches': toggle_matches,
-                #         'now': now,
-                #         'eol': line.a + len(replacement) + len_dle}
-                # )
             return
 
 
@@ -297,12 +205,6 @@ class PlainTasksCompleteCommand(PlainTasksBase):
             item_regions.reverse()
             for item in item_regions:
                 self.complete(edit, item)
-
-        # self.view.sel().clear()
-        # for ind, pt in enumerate(original):
-        #     ofs = ind * offset
-        #     new_pt = sublime.Region(pt.a + ofs, pt.b + ofs)
-        #     self.view.sel().add(new_pt)
 
         PlainTasksStatsStatus.set_stats(self.view)
         self.view.run_command('plain_tasks_toggle_highlight_past_due')
@@ -336,86 +238,6 @@ class PlainTasksCancelCommand(PlainTasksBase):
             item_regions.reverse()
             for item in item_regions:
                 self.cancel(edit, item)
-
-        # self.view.sel().clear()
-        # for ind, pt in enumerate(original):
-        #     ofs = ind * offset
-        #     new_pt = sublime.Region(pt.a + ofs, pt.b + ofs)
-        #     self.view.sel().add(new_pt)
-
-        PlainTasksStatsStatus.set_stats(self.view)
-        self.view.run_command('plain_tasks_toggle_highlight_past_due')
-
-    def oldCommand(self, edit):
-        original = [r for r in self.view.sel()]
-        canc_line_end, now = self.format_line_end(self.canc_tag, tznow())
-        offset = len(canc_line_end)
-        rom = r'^(\s*)(\[\s\]|.)(\s*.*)$'
-        rdm = r'^(\s*)(\[x\]|.)(\s*[^\b]*?(?:[^\@]|(?<!\s)\@|\@(?=\s))*?\s*)(?=((?:\s@done|@project|@[wl]asted|$).*)|(?:[ \t](\([^()]*\))\s*([^@]*|(?:@project|@[wl]asted).*))?$)'
-        rcm = r'^(\s*)(\[\-\]|.)(\s*[^\b]*?(?:[^\@]|(?<!\s)\@|\@(?=\s))*?\s*)(?=((?:\s@cancelled|@project|@[wl]asted|$).*)|(?:[ \t](\([^()]*\))\s*([^@]*|(?:@project|@[wl]asted).*))?$)'
-        started = r'^\s*[^\b]*?\s*@started(\([\d\w,\.:\-\/ @]*\)).*$'
-        toggle = r'@toggle(\([\d\w,\.:\-\/ @]*\))'
-        regions = itertools.chain(*(reversed(self.view.lines(region)) for region in reversed(list(self.view.sel()))))
-        for line in regions:
-            line_contents = self.view.substr(line)
-            open_matches = re.match(rom, line_contents, re.U)
-            done_matches = re.match(rdm, line_contents, re.U)
-            canc_matches = re.match(rcm, line_contents, re.U)
-            started_matches = re.findall(started, line_contents, re.U)
-            toggle_matches = re.findall(toggle, line_contents, re.U)
-
-            canc_line_end = canc_line_end.rstrip()
-            if line_contents.endswith('  '):
-                canc_line_end += '  '  # keep double whitespace at eol
-                dblspc = '  '
-            else:
-                dblspc = ''
-
-            current_scope = self.view.scope_name(line.a)
-            if 'pending' in current_scope:
-                grps = open_matches.groups()
-                len_cle = self.view.insert(edit, line.end(), canc_line_end)
-                replacement = u'%s%s%s' % (grps[0], self.canc_tasks_bullet, grps[2].rstrip())
-                self.view.replace(edit, line, replacement)
-                self.view.run_command(
-                    'plain_tasks_calculate_time_for_task', {
-                        'started_matches': started_matches,
-                        'toggle_matches': toggle_matches,
-                        'now': now,
-                        'eol': line.a + len(replacement) + len_cle,
-                        'tag': 'wasted'}
-                )
-            elif 'header' in current_scope:
-                eol = self.view.insert(edit, line.end(), canc_line_end)
-                self.view.run_command(
-                    'plain_tasks_calculate_time_for_task', {
-                        'started_matches': started_matches,
-                        'toggle_matches': toggle_matches,
-                        'now': now,
-                        'eol': line.end() + eol,
-                        'tag': 'wasted'}
-                )
-                indent = re.match('^(\s*)\S', line_contents, re.U)
-                self.view.insert(edit, line.begin() + len(indent.group(1)), '%s ' % self.canc_tasks_bullet)
-                self.view.run_command('plain_tasks_calculate_total_time_for_project', {'start': line.a})
-            elif 'completed' in current_scope:
-                sublime.status_message('You cannot cancel what have been done, can you?')
-                # grps = done_matches.groups()
-                # parentheses = check_parentheses(self.date_format, grps[4] or '')
-                # replacement = u'%s%s%s%s' % (grps[0], self.canc_tasks_bullet, grps[2], parentheses)
-                # self.view.replace(edit, line, replacement.rstrip())
-                # offset = -offset
-            elif 'cancelled' in current_scope:
-                grps = canc_matches.groups()
-                parentheses = check_parentheses(self.date_format, grps[4] or '')
-                replacement = u'%s%s%s%s' % (grps[0], self.open_tasks_bullet, grps[2], parentheses)
-                self.view.replace(edit, line, replacement.rstrip() + dblspc)
-                offset = -offset
-        self.view.sel().clear()
-        for ind, pt in enumerate(original):
-            ofs = ind * offset
-            new_pt = sublime.Region(pt.a + ofs, pt.b + ofs)
-            self.view.sel().add(new_pt)
 
         PlainTasksStatsStatus.set_stats(self.view)
         self.view.run_command('plain_tasks_toggle_highlight_past_due')
@@ -548,8 +370,7 @@ class PlainTasksNewTaskDocCommand(sublime_plugin.WindowCommand):
     def run(self):
         view = self.window.new_file()
         view.settings().add_on_change('color_scheme', lambda: self.set_proper_scheme(view))
-        view.set_syntax_file('Packages/PlainTasks/PlainTasks.sublime-syntax' if ST3 else
-                             'Packages/PlainTasks/PlainTasks.tmLanguage')
+        view.set_syntax_file('Packages/PlainTasks/PlainTasks.sublime-syntax')
 
     def set_proper_scheme(self, view):
         if view.id() != sublime.active_window().active_view().id():

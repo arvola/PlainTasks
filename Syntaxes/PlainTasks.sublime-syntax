@@ -37,19 +37,19 @@ contexts:
 
   item.todo:
     - meta_content_scope: meta.item.heading.todo
-    - match: '({{pending}})\s+'
+    - match: '({{pending}})'
       captures:
         1: markup.pending.bullet.todo meta.item.bullet.todo
       push: item.todo.pending
 
-    - match: '({{done}})\s+'
+    - match: '({{done}})'
       captures:
         1: markup.inserted.bullet.completed.todo meta.item.bullet.todo
       push:
         - meta_scope: string.item.completed.todo
         - include: item.todo.completed
 
-    - match: '({{cancelled}})\s+'
+    - match: '({{cancelled}})'
       captures:
         1: markup.deleted.bullet.completed.todo meta.item.bullet.todo
       push:
