@@ -2,6 +2,8 @@ arvola:
   ☐ Calculate time for tasks on done
   ☐ Fix selections when marking tasks done/cancelled
   ☐ Fix stats
+  ☐ Add a scope to dates in attributes
+    ☐ Meta scope to special tags' dates like done for quick searching
 
 TODO:
  ☐ make file links highlighted @feature
