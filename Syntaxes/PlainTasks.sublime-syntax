@@ -18,15 +18,25 @@ variables:
   tag: '{{tag_start}}{{tag_name}}{{tag_end}}'
 contexts:
   main:
-    - include: project
+    - include: project_start
     - include: task
+  project_start:
+    - match: '^(\s*)(\w.*)(?=:\n$)'
+      captures:
+        1: keyword.project.indent.todo
+        2: keyword.project.title.todo
+      push: project
   project:
-    - match: '^\s*{{project}}'
-      scope: keyword.other.project.todo
-      # Note that the newline at the end is already part of the notes.
-      # This makes it easier to tie the notes scope to the item it belongs to.
-    - match: $
-      set: notes
+    - meta_content_scope: meta.project.todo
+    - match: '(:)(\n)'
+      captures:
+        1: keyword.project.terminator.todo
+        2: keyword.project.line.todo
+    - match: '(?=^\s*\w.*\:$)'
+      pop: true
+    - include: task
+    - match: ''
+      push: notes
   task:
     - match: '^\s*(?={{task}})'
       push: [item.meta, item.todo]

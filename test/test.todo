@@ -1,8 +1,11 @@
 
+ ✔ Hey now! @done(20-05-03 17:56)
+ ☐ Another one
 
+---BACKLOG
 
 Due tags highlighting:
-
+  This is some shit.
 
   ☐ misformated @due( 2-31)
     February 31st
@@ -34,20 +37,23 @@ Due tags highlighting:
     it can be soon if today is the last day of a month
 
 Project:
-  ✔ simple
+  ✔ Yar @done(20-05-03 18:14) 
+  Sub:
+  ✔ simple @done(20-05-03 18:14)
   ☐ with tags @tag1 (aa bb) @tag2
   Completed with done/cancel:
-    ✔ done simple @done (13-06-27 10:08)
-    ✘ canceled simple @cancelled (13-06-27 10:08)
+    Another:
+    ☐ done simple
+    ✔ canceled simple @done(20-05-03 18:05)
     ✔ done with tags @tag1 @tag2 @done (13-06-27 10:08)
     ✘ cenceled with tags @tag1 @tag2 @cancelled (13-06-27 10:08) @tag3
   Completed without done/cancel:
-    ✔ done simple  (13-06-27 10:09)
+    ✔ done simple  (13-06-27 10:09) @done(20-05-03 18:05)
     ✘ canceled simple  (13-06-27 10:09)
     ✔ done with tags @tag1 @tag2  (13-06-27 10:09)
     ✘ cenceled with tags @tag1 @tag2  (13-06-27 10:09)
 
-Project 2: @fang
+Project 2:
   ☐ Low task  @tag @foo @bar
   ☐ One task here @high 
   ☐ Another one @critical
@@ -57,13 +63,15 @@ Project 2: @fang
 
     And more notes
   ✔ Done task @done (20-04-23 12:05)
-＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿
-Archive:
-  ✔ done simple @done (13-06-27 10:08) @project(Project / Completed with done/cancel)
-  ✘ canceled simple @cancelled (13-06-27 10:08) @project(Project / Completed with done/cancel)
-  ✔ done with tags @tag1 @tag2 @done (13-06-27 10:08) @project(Project / Completed with done/cancel)
-  ✘ cenceled with tags @tag1 @tag2 @cancelled (13-06-27 10:08) @project(Project / Completed with done/cancel)
-  ✔ done simple  (13-06-27 10:09) @project(Project / Completed without done/cancel)
-  ✘ canceled simple  (13-06-27 10:09) @project(Project / Completed without done/cancel)
-  ✔ done with tags @tag1 @tag2  (13-06-27 10:09) @project(Project / Completed without done/cancel)
-  ✘ cenceled with tags @tag1 @tag2  (13-06-27 10:09) @project(Project / Completed without done/cancel)
+
+---ARCHIVE
+
+  Completed with done/cancel:
+    ✔ done simple @done (13-06-27 10:08) @project(Project / Completed with done/cancel)
+    ✘ canceled simple @cancelled (13-06-27 10:08) @project(Project / Completed with done/cancel)
+    ✔ done with tags @tag1 @tag2 @done (13-06-27 10:08) @project(Project / Completed with done/cancel)
+    ✘ cenceled with tags @tag1 @tag2 @cancelled (13-06-27 10:08) @project(Project / Completed with done/cancel)
+    ✔ done simple  (13-06-27 10:09) @project(Project / Completed without done/cancel)
+    ✘ canceled simple  (13-06-27 10:09) @project(Project / Completed without done/cancel)
+    ✔ done with tags @tag1 @tag2  (13-06-27 10:09) @project(Project / Completed without done/cancel)
+    ✘ cenceled with tags @tag1 @tag2  (13-06-27 10:09) @project(Project / Completed without done/cancel)

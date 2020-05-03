@@ -197,6 +197,10 @@ class PlainTasksCompleteCommand(PlainTasksBase):
     def runCommand(self, edit):
         view = self.view
 
+        projects = all_selectors_in_region(self.view, "meta.project.todo", view.sel()[0], True)
+        for p in projects:
+            logging.info("%s %s" % (view.rowcol(p.begin()), view.rowcol(p.end())))
+
         selections = [it for it in view.sel()]
         # Reverse so changes don't affect the rest of the list
         selections.reverse()
