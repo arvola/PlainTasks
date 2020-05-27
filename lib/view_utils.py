@@ -26,14 +26,6 @@ SOFTWARE.
 import sublime
 from sublime import Region
 
-__all__ = ['has_file_ext', 'base_scope',
-           'coorded_substr', 'get_text',
-           'get_viewport_coords', 'set_viewport',
-           'adjust_region',
-           'extract_selector', 'selector_in_region',
-           'all_selectors_in_region']
-
-
 def has_file_ext(view, ext):
     """Returns `True` if `view` has file extension `ext`.
     `ext` may be specified with or without leading ".".

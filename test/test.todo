@@ -2,7 +2,7 @@
  ✔ Hey now! @done(20-05-03 17:56)
  ☐ Another one
 
----BACKLOG
+--- Backlog
 
 Due tags highlighting:
   This is some shit.
@@ -43,7 +43,7 @@ Project:
   ☐ with tags @tag1 (aa bb) @tag2
   Completed with done/cancel:
     Another:
-    ☐ done simple
+    ✔ done simple @done(20-05-10 17:29)
     ✔ canceled simple @done(20-05-03 18:05)
     ✔ done with tags @tag1 @tag2 @done (13-06-27 10:08)
     ✘ cenceled with tags @tag1 @tag2 @cancelled (13-06-27 10:08) @tag3
@@ -64,7 +64,7 @@ Project 2:
     And more notes
   ✔ Done task @done (20-04-23 12:05)
 
----ARCHIVE
+--- Archive
 
   Completed with done/cancel:
     ✔ done simple @done (13-06-27 10:08) @project(Project / Completed with done/cancel)

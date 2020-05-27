@@ -14,6 +14,7 @@ import io
 from datetime import timezone
 
 from .lib.view_utils import extract_selector, selector_in_region, all_selectors_in_region, adjust_region
+from .lib.task_utils import tasks_in_selection, project_for_task
 from .lib.PlainTasksCommon import PlainTasksBase, PlainTasksFold, get_all_projects_and_separators
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -197,18 +198,11 @@ class PlainTasksCompleteCommand(PlainTasksBase):
     def runCommand(self, edit):
         view = self.view
 
-        projects = all_selectors_in_region(self.view, "meta.project.todo", view.sel()[0], True)
-        for p in projects:
-            logging.info("%s %s" % (view.rowcol(p.begin()), view.rowcol(p.end())))
-
-        selections = [it for it in view.sel()]
-        # Reverse so changes don't affect the rest of the list
-        selections.reverse()
-        for sel in selections:
-            item_regions = all_selectors_in_region(self.view, "meta.item.todo", sel, True)
-            item_regions.reverse()
-            for item in item_regions:
-                self.complete(edit, item)
+        tasks = tasks_in_selection(view)
+        tasks.reverse()
+        for task in tasks:
+            logging.info(project_for_task(view, task))
+            self.complete(edit, task)
 
         PlainTasksStatsStatus.set_stats(self.view)
         self.view.run_command('plain_tasks_toggle_highlight_past_due')
@@ -234,20 +228,18 @@ class PlainTasksCancelCommand(PlainTasksBase):
     def runCommand(self, edit):
         view = self.view
 
-        selections = [it for it in view.sel()]
-        # Reverse so changes don't affect the rest of the list
-        selections.reverse()
-        for sel in selections:
-            item_regions = all_selectors_in_region(self.view, "meta.item.todo", sel, True)
-            item_regions.reverse()
-            for item in item_regions:
-                self.cancel(edit, item)
+        tasks = tasks_in_selection(view)
+        tasks.reverse()
+        for task in tasks:
+            self.cancel(edit, task)
 
         PlainTasksStatsStatus.set_stats(self.view)
         self.view.run_command('plain_tasks_toggle_highlight_past_due')
 
 
 class PlainTasksArchiveCommand(PlainTasksBase):
+
+
     def runCommand(self, edit, partial=False):
         rds = 'meta.item.todo.completed'
         rcs = 'meta.item.todo.cancelled'

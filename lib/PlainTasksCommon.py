@@ -1,6 +1,7 @@
 # coding: utf-8
 import sublime, sublime_plugin
 import itertools
+import logging
 
 def get_all_projects_and_separators(view):
     # because tmLanguage need \n to make background full width of window
@@ -15,6 +16,7 @@ class PlainTasksBase(sublime_plugin.TextCommand):
     def run(self, edit, **kwargs):
         settings = self.view.settings()
 
+        logging.info('Loading settings')
         self.taskpaper_compatible = settings.get('taskpaper_compatible', False)
         if self.taskpaper_compatible:
             self.open_tasks_bullet = self.done_tasks_bullet = self.canc_tasks_bullet = '-'

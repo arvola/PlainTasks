@@ -46,6 +46,18 @@
     "rules":
     [
         {
+            "name": "Section Heading",
+            "scope": "markup.heading.section",
+            "foreground": "var(white)",
+            "background": "color(var(orange) alpha(40%))"
+        },
+        {
+            "name": "Section Heading",
+            "scope": "markup.heading.section.line | punctuation.definition.section.todo",
+            "foreground": "var(black)",
+            "background": "color(var(orange) alpha(40%))"
+        },
+        {
             "name": "Project",
             "scope": "keyword",
             "foreground": "var(project)",

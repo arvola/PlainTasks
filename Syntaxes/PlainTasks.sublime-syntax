@@ -10,6 +10,7 @@ variables:
   pending: '-|❍|❑|□|☐|▫'
   done: '\+|✓|✔|√|■|▪'
   cancelled: '✘|x'
+  section: '^---'
   task: '({{pending}}|{{done}}|{{cancelled}})'
   project: '(\#?\s?\w+.*?:\s*?(\@[^\s]+(\(.*?\))?\s*?)*$\n?)'
   tag_start: '(?<=\s)(\@)'
@@ -18,8 +19,22 @@ variables:
   tag: '{{tag_start}}{{tag_name}}{{tag_end}}'
 contexts:
   main:
+    - include: section
     - include: project_start
     - include: task
+  section:
+    - match: '({{section}})([^\n]*)(\n)'
+      captures:
+        1: punctuation.definition.section.todo
+        2: markup.heading.section.todo
+        3: markup.heading.section.line.todo
+      push:
+        - meta_content_scope: meta.section.todo
+        - match: '(?={{section}})'
+          pop: true
+        - include: project_start
+        - include: task
+
   project_start:
     - match: '^(\s*)(\w.*)(?=:\n$)'
       captures:
@@ -33,6 +48,8 @@ contexts:
         1: keyword.project.terminator.todo
         2: keyword.project.line.todo
     - match: '(?=^\s*\w.*\:$)'
+      pop: true
+    - match: '(?={{section}})'
       pop: true
     - include: task
     - match: ''
@@ -170,5 +187,7 @@ contexts:
       pop: true
   notes:
     - meta_content_scope: comment.notes.todo
+    - match: '(?={{section}})'
+      pop: true
     - match: '(?=^\s*({{task}}|{{project}}))'
       pop: true
