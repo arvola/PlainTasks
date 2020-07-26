@@ -1,14 +1,21 @@
 {
+	"build_systems":
+	[
+		{
+			"name": "Reload Current Package",
+			"target": "package_reloader_reload"
+		},
+		{
+			"file_regex": "^[ ]*File \"(...*?)\", line ([0-9]*)",
+			"name": "Anaconda Python Builder",
+			"selector": "source.python",
+			"shell_cmd": "\"python\" -u \"$file\""
+		}
+	],
 	"folders":
 	[
 		{
 			"path": "."
 		}
-	],
-    "build_systems": [
-        {
-            "name": "Reload Current Package",
-            "target": "package_reloader_reload"
-        }
-    ]
+	]
 }

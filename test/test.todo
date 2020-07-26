@@ -44,9 +44,9 @@ Project:
   Completed with done/cancel:
     Another:
     ✔ done simple @done(20-05-10 17:29)
-    ✔ canceled simple @done(20-05-03 18:05)
+    ✔ canceled simple @done(20-06-07 19:21)
     ✔ done with tags @tag1 @tag2 @done (13-06-27 10:08)
-    ✘ cenceled with tags @tag1 @tag2 @cancelled (13-06-27 10:08) @tag3
+    ✘ cenceled with tags @tag1 @tag2 @tag3 @cancelled(20-06-07 19:23)
   Completed without done/cancel:
     ✔ done simple  (13-06-27 10:09) @done(20-05-03 18:05)
     ✘ canceled simple  (13-06-27 10:09)
@@ -56,6 +56,7 @@ Project:
 Project 2:
   ☐ Low task  @tag @foo @bar
   ☐ One task here @high 
+  ☐ third task!
   ☐ Another one @critical
     This one has some notes.
 
@@ -75,3 +76,6 @@ Project 2:
     ✘ canceled simple  (13-06-27 10:09) @project(Project / Completed without done/cancel)
     ✔ done with tags @tag1 @tag2  (13-06-27 10:09) @project(Project / Completed without done/cancel)
     ✘ cenceled with tags @tag1 @tag2  (13-06-27 10:09) @project(Project / Completed without done/cancel)
+
+Teeest:
+  ☐ fun test 

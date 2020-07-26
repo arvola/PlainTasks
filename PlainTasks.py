@@ -13,9 +13,17 @@ import logging
 import io
 from datetime import timezone
 
+from sublime import Region
 from .lib.view_utils import extract_selector, selector_in_region, all_selectors_in_region, adjust_region
-from .lib.task_utils import tasks_in_selection, project_for_task
+from .lib.task_utils import (tasks_in_selection, 
+    project_for_task, 
+    all_sections, 
+    get_section,
+    all_projects_in_section, 
+    project_in_section, 
+    move_tasks_to_section)
 from .lib.PlainTasksCommon import PlainTasksBase, PlainTasksFold, get_all_projects_and_separators
+from .lib.task import Attribute
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -45,37 +53,6 @@ def check_parentheses(date_format, regex_group, is_date=False):
             parentheses = regex_group
     return parentheses
 
-def add_tag(view, edit, region, tag, attribute = None):
-    if attribute is None:
-        tag = '@%s' % (tag);
-    else:
-        tag = '@%s(%s)' % (tag, attribute);
-
-    pos = selector_in_region(view, "meta.item.heading", region).end();
-    
-    # Keep white space at the end
-    while re.match('\s', view.substr(pos - 1)):
-        pos = pos - 1;
-
-    length = view.insert(edit, pos, ' ' + tag);
-    return sublime.Region(pos, pos + length);
-
-def remove_tag(view, edit, region, tag):
-    tags = all_selectors_in_region(view, "meta.tag.todo", region);
-    # Delete them in reverse so the search doesn't get messed up
-    tags.reverse();
-    length = 0
-    pos = 0
-    for reg in tags:
-        name = selector_in_region(view, "support.constant.name.tag", reg);
-        if view.substr(name).casefold() == tag.casefold():
-            erased = sublime.Region(reg.begin() - 1, reg.end())
-            view.erase(edit, erased);
-            length += erased.size();
-            pos = erased.begin();
-
-    return sublime.Region(pos, pos - length);
-
 class PlainTasksNewCommand(PlainTasksBase):
     def newTaskBelow(self, edit, pos):
         view = self.view
@@ -85,10 +62,20 @@ class PlainTasksNewCommand(PlainTasksBase):
         while re.match(r'[^\S\n\r]', view.substr(indent_begin - 1)):
             indent_begin -= 1
 
+        pos = region.end() - 1
+        # Go back to the last non-blank line
+        while re.match(r'[\s\n\r]', view.substr(pos)):
+            pos -= 1
+
+        # Then go to the end of that line
+        while re.match(r'[^\n]', view.substr(pos)):
+            pos += 1
+
         indent = view.substr(sublime.Region(indent_begin, indent_end))
-        length = view.insert(edit, region.end(), "%s%s%s\n" % (indent, self.open_tasks_bullet, self.tasks_bullet_space))
-        # Position for a cursor for the new item, -1 is for the newline
-        return [sublime.Region(region.end() + length - 1), sublime.Region(region.end(), region.end() + length)]
+        length = view.insert(edit, pos, "\n%s%s " % (indent, 
+            self.config.pending_task))
+        # Position for a cursor for the new item
+        return [sublime.Region(pos + length), sublime.Region(pos, pos+ length)]
 
     def convertLine(self, edit, line, convert_blank = False):
         view = self.view
@@ -101,7 +88,7 @@ class PlainTasksNewCommand(PlainTasksBase):
         else:
             pos = line.begin() + pos.start()
 
-        length = view.insert(edit, pos, self.open_tasks_bullet + self.tasks_bullet_space)
+        length = view.insert(edit, pos, self.config.pending_task + ' ')
         return [sublime.Region(pos + length), sublime.Region(pos, pos + length)]
 
     def runCommand(self, edit):
@@ -139,103 +126,133 @@ class PlainTasksNewCommand(PlainTasksBase):
                         if convert_blank:
                             cursors.append(cursor)
         if cursors:
-            view.sel().clear();
-            view.sel().add_all(cursors);
+            view.sel().clear()
+            view.sel().add_all(cursors)
 
 
 class PlainTasksNewWithDateCommand(PlainTasksBase):
     def runCommand(self, edit):
         self.view.run_command('plain_tasks_new')
-
         view = self.view
 
-        selections = [it for it in view.sel()]
-
+        tasks = tasks_in_selection(view)
         # Reverse so changes don't affect the rest of the list
-        selections.reverse()
+        tasks.reverse()
         cursors = []
 
-        for sel in selections:
-            # Adjust the selection region by 1 because the newline at the end of an item heading
-            # is already out of scope, but we want to include the item in the scope if the selection
-            # begins at the newline
-            item_regions = all_selectors_in_region(view, "meta.item.heading.todo", sublime.Region(sel.begin() - 1, sel.end()), True)
-            if item_regions:
-                item_regions.reverse()
-                for item in item_regions:
-                    tag_region = add_tag(view, edit, item, 'created', tznow().strftime(self.date_format))
-                    # Adjust cursors we already have with the insertion
-                    cursors = list(map(lambda c: adjust_region(c, tag_region), cursors))
-                    cursors.append(sublime.Region(sel.begin()))
-        if cursors:
-            view.sel().clear();
-            view.sel().add_all(cursors);
+        for task in tasks:
+            tag_region = task.add_tag(edit, 'created', tznow().strftime(self.config.date_format))
+            # Adjust cursors we already have with the insertion
+            cursors = list(map(lambda c: adjust_region(c, tag_region), cursors))
+            cursors.append(Region(task.region.begin() + 2))
 
+        if cursors:
+            view.sel().clear()
+            view.sel().add_all(cursors)
 
 class PlainTasksCompleteCommand(PlainTasksBase):
-    def complete(self, edit, region):
-        view = self.view
-
-        bullet = selector_in_region(view, "meta.item.bullet", region)
-        pending = selector_in_region(view, "markup.list.item.pending", region)
-        if pending is not None:
-            view.replace(edit, bullet, self.done_tasks_bullet)
-            return add_tag(view, edit, region, 'done', tznow().strftime(self.date_format))
-
-        completed = selector_in_region(view, "string.item.completed", region)
-        if completed is not None:
-            view.replace(edit, bullet, self.open_tasks_bullet)
-            return remove_tag(view, edit, region, 'done')
-
-        cancelled = selector_in_region(view, "string.item.cancelled", region)
-        if cancelled is not None:
-            view.replace(edit, bullet, self.done_tasks_bullet)
-            remove_tag(view, edit, region, 'cancelled')
-            add_tag(view, edit, region, 'done', tznow().strftime(self.date_format))
-            return
-
 
     def runCommand(self, edit):
         view = self.view
 
         tasks = tasks_in_selection(view)
         tasks.reverse()
+        hasDone = False
+        hasPending = False
         for task in tasks:
-            logging.info(project_for_task(view, task))
-            self.complete(edit, task)
+            if (not hasPending and task.pending()):
+                hasPending = True
+            elif (not hasDone and task.completed()):
+                hasDone = True
+
+        if hasPending:
+            # Complete pending tasks, but don't "uncomplete" others
+            for task in tasks:
+                if task.pending():
+                    task.complete(edit)
+                    task.add_tag(edit, 'done', Attribute.timestamp(view))
+        elif hasDone:
+            # Make tasks pending again
+            for task in tasks:
+                if task.completed():
+                    task.pend(edit)
+                    task.remove_tag(edit, 'done')
+        else:
+            # The tasks are all cancelled, complete them
+            for task in tasks:
+                task.complete(edit)
+                task.remove_tag(edit, 'cancelled')
+                task.add_tag(edit, 'done', Attribute.timestamp(view))
 
         PlainTasksStatsStatus.set_stats(self.view)
         self.view.run_command('plain_tasks_toggle_highlight_past_due')
 
 
 class PlainTasksCancelCommand(PlainTasksBase):
-    def cancel(self, edit, region):
-        view = self.view
-
-        bullet = selector_in_region(view, "meta.item.bullet", region)
-        pending = selector_in_region(view, "markup.list.item.pending", region)
-        if pending is not None:
-            view.replace(edit, bullet, self.canc_tasks_bullet)
-            return add_tag(view, edit, region, 'cancelled', tznow().strftime(self.date_format))
-
-        cancelled = selector_in_region(view, "string.item.cancelled", region)
-        if cancelled is not None:
-            view.replace(edit, bullet, self.open_tasks_bullet)
-            remove_tag(view, edit, region, 'cancelled')
-            return
-
 
     def runCommand(self, edit):
         view = self.view
 
         tasks = tasks_in_selection(view)
         tasks.reverse()
+        hasCancelled = False
+        hasPending = False
         for task in tasks:
-            self.cancel(edit, task)
+            if (not hasPending and task.pending()):
+                hasPending = True
+            elif (not hasCancelled and task.cancelled()):
+                hasCancelled = True
+
+        if hasPending:
+            # Cancel pending tasks if there are any
+            for task in tasks:
+                if task.pending():
+                    task.cancel(edit)
+                    task.add_tag(edit, 'cancelled', Attribute.timestamp(view))
+        elif hasCancelled:
+            # Uncancel cancelled tasks since there are no pending ones
+            for task in tasks:
+                if task.cancelled():
+                    task.pend(edit)
+                    task.remove_tag(edit, 'cancelled')
+        else:
+            # Only completed tasks in selection, cancel them all
+            for task in tasks:
+                task.cancel(edit)
+                task.remove_tag(edit, 'done')
+                task.add_tag(edit, 'cancelled', Attribute.timestamp(view))
 
         PlainTasksStatsStatus.set_stats(self.view)
         self.view.run_command('plain_tasks_toggle_highlight_past_due')
 
+
+class PlainTasksMoveCommand(PlainTasksBase):
+
+    def runCommand(self, edit):
+        view = self.view
+        window = view.window()
+        sections = all_sections(view)
+
+        def onSelect(section_index):
+            if section_index >= 0:
+                view.run_command('plain_tasks_move_to_section', 
+                    {'section_name': sections[section_index]['title']})
+
+        titles = list(map(lambda it: it['title'], sections))
+        window.show_quick_panel(titles, onSelect)
+
+class PlainTasksMoveToSectionCommand(PlainTasksBase):
+    def runCommand(self, edit, section_name):
+        view = self.view
+        tasks = tasks_in_selection(view)
+        sections = all_sections(view)
+        section = next((item for item in sections if item["title"] == section_name), None)
+        move_tasks_to_section(view, edit, tasks, section)
+
+class PlainTasksArchCommand(PlainTasksBase):
+    def runCommand(self, edit):
+        view = self.view
+        section = get_section(view, edit, self.config.archive_section)
 
 class PlainTasksArchiveCommand(PlainTasksBase):
 
@@ -297,9 +314,9 @@ class PlainTasksArchiveCommand(PlainTasksBase):
         for ind, pr in enumerate(projects):
             if task < pr:
                 if ind > 0:
-                    index = ind-1
+                    index = ind - 1
                 break
-        #if there is no projects for task - return empty string
+        # if there is no projects for task - return empty string
         if index == -1:
             return ''
 
@@ -469,7 +486,7 @@ class PlainTasksOpenLinkCommand(sublime_plugin.TextCommand):
         if res[3] == 'f':
             return [res[0], "line: %d column: %d" % (int(res[1]), int(res[2]))]
         elif res[3] == 'd':
-            return [res[0], 'Add folder to project' if ST3 else 'Folders are supported only in Sublime 3']
+            return [res[0], 'Add folder to project']
         else:
             return [res[0], res[1]]
 
@@ -485,8 +502,6 @@ class PlainTasksOpenLinkCommand(sublime_plugin.TextCommand):
         res = self._current_res[selection]
         if not res[3]:
             return  # user chose to stop search
-        if not ST3 and res[3] == "d":
-            return sublime.status_message('Folders are supported only in Sublime 3')
         elif res[3] == "d":
             data = win.project_data()
             if not data:

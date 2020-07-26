@@ -157,12 +157,34 @@ def adjust_region(region, adjustment):
     it should have b as the starting position of removal, and a as the
     start minus the length
     """
-    if adjustment.size() > 0 and region.begin() > adjustment.a:
-        if adjustment.a > adjustment.b:
-            return sublime.Region(region.a - adjustment.size(), region.b - adjustment.size());
+    if adjustment.size() > 0:
+        # To make it simpler, check if it's reversed now, operate on a non-reversed
+        # region, and then reverse before returning
+        reverse = region.a > region.b
+        reg = Region(region.begin(), region.end())
+        adjusted = None
+        if adjustment.b > adjustment.a:
+            # Inserted
+            if region.a > adjustment.a:
+                adjusted = Region(region.a + adjustment.size(), region.b + adjustment.size())
+            elif region.b >= adjustment.a:
+                adjusted = Region(region.a, region.b + adjustment.size())
         else:
-            return sublime.Region(region.a + adjustment.size(), region.b + adjustment.size());
-
+            # Erased
+            if region.a >= adjustment.end():
+                return Region(region.a - adjustment.size(), region.b - adjustment.size())
+            elif region.contains(adjustment):
+                adjusted = Region(region.a, region.b - adjustment.size())
+            elif region.intersects(adjustment):
+                # Bit of a weird scenario, let's just "delete" the part that intersected
+                if region.a < adjustment.b:
+                    adjusted = Region(adjustment.b, region.b - adjustment.size())
+                else:
+                    adjusted = Region(region.a, adjustment.b)
+        if adjusted is not None:
+            if reverse:
+                return Region(adjusted.b, adjusted.a)
+            return adjusted
     return region;
 
 
