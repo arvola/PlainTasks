@@ -14,5 +14,5 @@
     { "caption": "Tasks: Fold to due tasks", "command": "plain_tasks_fold_to_due_tags" },
     { "caption": "Tasks: Filter by tags under cursors", "command": "plain_tasks_fold_to_tags" },
     { "caption": "Tasks: Move task to section", "command": "plain_tasks_move" },
-    { "caption": "Tasks: Archive!", "command": "plain_tasks_arch" }
+    { "caption": "Tasks: Archive!", "command": "plain_tasks_archive_in_project" }
 ]

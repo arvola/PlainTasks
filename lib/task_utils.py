@@ -22,8 +22,8 @@ def tasks_in_selection(view):
 def project_for_task(view, task):
     """Finds the project hierarchy for the given task.
 
-    `task` is expected to be a region corresponding to the meta.item.todo 
-    for the task.
+    `task` is typically a region corresponding to the meta.item.todo 
+    for the task, but it can be any region.
 
     Example:
         project_for_task(view, region)
@@ -93,7 +93,11 @@ def get_section(view, edit, section_title):
 
     view.insert(edit, view.size(), "\n--- %s\n " % (section_title))
 
-    return {'title': section_title, 'region': Region(view.size() - 1, view.size() - 1)}
+    # The region will include the newline after the title,
+    # and the space we inserted
+    reg = Region(view.size() - 2, view.size())
+    logging.info('New section region %s has "%s"' % (reg, view.substr(reg)))
+    return {'title': section_title, 'region': reg}
 
 def all_projects_in_section(view, section):
     regions = all_selectors_in_region(view, 'meta.project.todo', section)
@@ -122,6 +126,12 @@ def all_projects_in_section(view, section):
             stack.append(project)
     return projects
 
+def tasks_in_region(view, region):
+    tasks = []
+    item_regions = all_selectors_in_region(view, "meta.item.todo", region, True)
+    for item in item_regions:
+        tasks.append(Task(view, item))
+    return tasks
 
 def project_in_section(view, edit, section, project_names):
     """ Finds a project in the given section, or creates it
@@ -198,9 +208,9 @@ def create_project(view, edit, after, depth, project_names):
 
 def move_tasks_to_section(view, edit, move_tasks, section):
     tasks = move_tasks[:]
-    logging.info('Moving tasks %s to section %s' % (tasks, section))
     while len(tasks) > 0:
-        task = tasks.pop()
+        task = tasks.pop(0)
+        logging.info('Moving task %s to section %s' % (task, section))
         project = task.project()
         to, project_adjustment = project_in_section(view, edit, section['region'], [p.name() for p in project])
 
@@ -222,7 +232,10 @@ def move_tasks_to_section(view, edit, move_tasks, section):
         content = view.substr(region)
         view.erase(edit, erasure)
         to.region = adjust_region(to.region, erasure)
-        insert_point = to.region.end()
+        logging.info('Project to insert is %s: %s' % (to.region, view.substr(to.region)))
+        # Converting the end of the region to a point seems to put it at
+        # the next character AFTER the region
+        insert_point = to.region.end() - 1
         logging.info('Insertion point before %s' % (insert_point))
         logging.info('Insertion point is now at "%s"' % (repr(view.substr(insert_point))))
         # Go back to the last non-blank line
@@ -252,5 +265,7 @@ def move_tasks_to_section(view, edit, move_tasks, section):
                 # Also need to adjust the section
                 section['region'].a = section['region'].a - len(content)
             for adjust in tasks:
-                if change_area.contains(adjust.region):
+                logging.info('Checking change area %s against adjust task %s' % (change_area, adjust.region))
+                if change_area.intersects(adjust.region):
                     adjust.region = adjust_region(adjust.region, change)
+                    logging.info('Adjusted %s' % (adjust.region))

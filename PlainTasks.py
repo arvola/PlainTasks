@@ -21,7 +21,8 @@ from .lib.task_utils import (tasks_in_selection,
     get_section,
     all_projects_in_section, 
     project_in_section, 
-    move_tasks_to_section)
+    move_tasks_to_section,
+    tasks_in_region)
 from .lib.PlainTasksCommon import PlainTasksBase, PlainTasksFold, get_all_projects_and_separators
 from .lib.task import Attribute
 
@@ -249,10 +250,21 @@ class PlainTasksMoveToSectionCommand(PlainTasksBase):
         section = next((item for item in sections if item["title"] == section_name), None)
         move_tasks_to_section(view, edit, tasks, section)
 
-class PlainTasksArchCommand(PlainTasksBase):
+class PlainTasksArchiveInProjectCommand(PlainTasksBase):
     def runCommand(self, edit):
         view = self.view
         section = get_section(view, edit, self.config.archive_section)
+        selections = [it for it in view.sel()]
+        for sel in selections:
+            project = project_for_task(view, sel.begin())
+            tasks = []
+            for task in tasks_in_region(view, project[-1].region):
+                if (task.completed() or (self.config.archive_cancelled_tasks and task.cancelled())):
+                    tasks.append(task)
+
+            logging.info('Tasks to move %s' % (tasks))
+            move_tasks_to_section(view, edit, tasks, section)
+            
 
 class PlainTasksArchiveCommand(PlainTasksBase):
 

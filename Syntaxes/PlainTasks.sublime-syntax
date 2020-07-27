@@ -27,7 +27,7 @@ contexts:
       captures:
         1: punctuation.definition.section.todo
         2: markup.heading.section.todo
-        3: markup.heading.section.line.todo
+        3: markup.heading.section.line.todo, meta.section.todo
       push:
         - meta_content_scope: meta.section.todo
         - match: '(?={{section}})'

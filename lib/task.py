@@ -8,6 +8,8 @@ from .config import get_config
 from .view_utils import extract_selector, selector_in_region, all_selectors_in_region, adjust_region
 from .project import Project
 
+import logging
+
 # Special automatic attributes for tags
 class Attribute:
     def timestamp(view):
@@ -131,8 +133,10 @@ class Task:
                 section_begin = 0
 
             project_regions = self.view.find_by_selector('meta.project.todo')
+            project_index = None
 
             for i, region in enumerate(project_regions):
+                logging.info('Checking project %s against this task %s' % (region, self.region))
                 if region.contains(self.region):
                     project_index = i
                     break

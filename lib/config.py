@@ -8,7 +8,8 @@ default_config = {
     'cancelled_tag': 'cancelled',
     'completed_date': True,
     'cancelled_date': True,
-    'archive_section': 'Archive'
+    'archive_section': 'Archive',
+    'archive_cancelled_tasks': True
 }
 
 class Config:
